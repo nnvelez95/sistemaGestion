@@ -4,15 +4,15 @@ import com.techlab.excepciones.StockInsuficienteException;
 import com.techlab.pedidos.LineaPedido;
 import com.techlab.pedidos.Pedido;
 import com.techlab.productos.Producto;
+import com.techlab.util.ArchivoUtil;
 
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Optional;
+import java.util.*;
 
 public class PedidoService {
 
     private final List<Pedido> pedidos = new ArrayList<>();
     private int nextId = 1;
+    private final String RUTA_PEDIDOS = "data/pedidos.txt";
 
     private final ProductoService productoService;
 
@@ -53,4 +53,42 @@ public class PedidoService {
     public boolean hayPedidos() {
         return !pedidos.isEmpty();
     }
+    // 🔹 Guardar pedidos
+    public void guardarEnArchivo() {
+        List<String> lineas = new ArrayList<>();
+        for (Pedido pedido : pedidos) {
+            for (LineaPedido lp : pedido.getLineas()) {
+                lineas.add(String.format("%d;%s;%d;%.2f",
+                        pedido.getId(),
+                        lp.getProducto().getNombre(),
+                        lp.getCantidad(),
+                        lp.getSubtotal()));
+            }
+        }
+        ArchivoUtil.escribirLineas(RUTA_PEDIDOS, lineas);
+    }
+
+    // 🔹 Cargar pedidos (básico)
+    public void cargarDesdeArchivo() {
+        List<String> lineas = ArchivoUtil.leerLineas(RUTA_PEDIDOS);
+        Map<Integer, Pedido> mapa = new HashMap<>();
+
+        for (String linea : lineas) {
+            String[] datos = linea.split(";");
+            int idPedido = Integer.parseInt(datos[0]);
+            String nombreProducto = datos[1];
+            int cantidad = Integer.parseInt(datos[2]);
+
+            Optional<Producto> producto = productoService.buscarPorNombre(nombreProducto);
+            if (producto.isPresent()) {
+                Pedido pedido = mapa.computeIfAbsent(idPedido, Pedido::new);
+                pedido.agregarLinea(new LineaPedido(producto.get(), cantidad));
+            }
+        }
+
+        pedidos.clear();
+        pedidos.addAll(mapa.values());
+        nextId = pedidos.stream().mapToInt(Pedido::getId).max().orElse(0) + 1;
+    }
 }
+

@@ -7,6 +7,7 @@ import com.techlab.productos.Producto;
 import com.techlab.servicios.PedidoService;
 import com.techlab.servicios.ProductoService;
 
+
 import java.util.*;
 
 public class Main {
@@ -16,6 +17,11 @@ public class Main {
     private static final PedidoService pedidoService = new PedidoService(productoService);
 
     public static void main(String[] args) {
+
+    // 🔹 Cargar datos al iniciar
+        productoService.cargarDesdeArchivo();
+        pedidoService.cargarDesdeArchivo();
+
         boolean salir = false;
 
         System.out.println("================================");
@@ -38,6 +44,9 @@ public class Main {
                 default -> System.out.println("⚠️  Opción no válida. Intente nuevamente.");
             }
         }
+        // 🔹 Guardar datos antes de salir
+        productoService.guardarEnArchivo();
+        pedidoService.guardarEnArchivo();
 
         System.out.println("\n✅ Programa finalizado. ¡Hasta luego!");
     }
@@ -55,7 +64,7 @@ public class Main {
         System.out.println("=====================================");
     }
 
-    // Métodos de producto 
+    // Métodos de producto
     private static void agregarProducto() {
         try {
             System.out.println("Seleccione tipo de producto:");

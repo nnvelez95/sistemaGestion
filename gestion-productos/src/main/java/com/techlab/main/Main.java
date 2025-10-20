@@ -1,17 +1,19 @@
 package com.techlab.main;
 
+import com.techlab.excepciones.StockInsuficienteException;
+import com.techlab.pedidos.LineaPedido;
+import com.techlab.pedidos.Pedido;
 import com.techlab.productos.Producto;
+import com.techlab.servicios.PedidoService;
 import com.techlab.servicios.ProductoService;
 
-import java.util.InputMismatchException;
-import java.util.List;
-import java.util.Optional;
-import java.util.Scanner;
+import java.util.*;
 
 public class Main {
 
     private static final Scanner scanner = new Scanner(System.in);
     private static final ProductoService productoService = new ProductoService();
+    private static final PedidoService pedidoService = new PedidoService(productoService);
 
     public static void main(String[] args) {
         boolean salir = false;
@@ -30,7 +32,9 @@ public class Main {
                 case "2" -> listarProductos();
                 case "3" -> buscarActualizarProducto();
                 case "4" -> eliminarProducto();
-                case "5" -> salir = true;
+                case "5" -> crearPedido();
+                case "6" -> listarPedidos();
+                case "7" -> salir = true;
                 default -> System.out.println("⚠️  Opción no válida. Intente nuevamente.");
             }
         }
@@ -45,19 +49,19 @@ public class Main {
         System.out.println("2) Listar productos");
         System.out.println("3) Buscar / Actualizar producto");
         System.out.println("4) Eliminar producto");
-        System.out.println("5) Salir");
+        System.out.println("5) Crear pedido");
+        System.out.println("6) Listar pedidos");
+        System.out.println("7) Salir");
         System.out.println("=====================================");
     }
 
-    // 🔹 Agregar producto
+    // Métodos de producto (los mismos que ya teníamos)
     private static void agregarProducto() {
         try {
             System.out.print("Ingrese nombre del producto: ");
             String nombre = scanner.nextLine();
-
             System.out.print("Ingrese precio: ");
             double precio = Double.parseDouble(scanner.nextLine());
-
             System.out.print("Ingrese stock: ");
             int stock = Integer.parseInt(scanner.nextLine());
 
@@ -69,7 +73,6 @@ public class Main {
         }
     }
 
-    // 🔹 Listar productos
     private static void listarProductos() {
         List<Producto> lista = productoService.listarProductos();
 
@@ -81,13 +84,11 @@ public class Main {
         }
     }
 
-    // 🔹 Buscar / Actualizar producto
     private static void buscarActualizarProducto() {
         System.out.print("Ingrese el ID o nombre del producto: ");
         String entrada = scanner.nextLine();
         Optional<Producto> producto;
 
-        // Determinar si el usuario ingresó un número (ID) o texto (nombre)
         try {
             int id = Integer.parseInt(entrada);
             producto = productoService.buscarPorId(id);
@@ -121,13 +122,11 @@ public class Main {
                     System.out.println("⚠️  Error: Ingrese valores numéricos válidos.");
                 }
             }
-
         } else {
             System.out.println("⚠️  Producto no encontrado.");
         }
     }
 
-    // 🔹 Eliminar producto
     private static void eliminarProducto() {
         System.out.print("Ingrese el ID del producto a eliminar: ");
         try {
@@ -141,5 +140,58 @@ public class Main {
             System.out.println("⚠️  Error: Debe ingresar un número de ID válido.");
         }
     }
-}
 
+    // 🔹 Crear pedido
+    private static void crearPedido() {
+        if (productoService.estaVacio()) {
+            System.out.println("⚠️  No hay productos disponibles para crear un pedido.");
+            return;
+        }
+
+        List<LineaPedido> lineas = new ArrayList<>();
+
+        System.out.println("--- CREAR NUEVO PEDIDO ---");
+        boolean seguir = true;
+
+        while (seguir) {
+            listarProductos();
+            System.out.print("Ingrese ID del producto que desea agregar: ");
+            int id = Integer.parseInt(scanner.nextLine());
+
+            Optional<Producto> optProducto = productoService.buscarPorId(id);
+            if (optProducto.isEmpty()) {
+                System.out.println("⚠️  Producto no encontrado.");
+                continue;
+            }
+
+            Producto producto = optProducto.get();
+
+            System.out.print("Ingrese cantidad deseada: ");
+            int cantidad = Integer.parseInt(scanner.nextLine());
+
+            lineas.add(new LineaPedido(producto, cantidad));
+
+            System.out.print("¿Agregar otro producto? (s/n): ");
+            seguir = scanner.nextLine().equalsIgnoreCase("s");
+        }
+
+        try {
+            Pedido pedido = pedidoService.crearPedido(lineas);
+            System.out.println("✅ Pedido creado exitosamente:");
+            System.out.println(pedido);
+        } catch (StockInsuficienteException e) {
+            System.out.println("❌ Error al crear pedido: " + e.getMessage());
+        }
+    }
+
+    // 🔹 Listar pedidos
+    private static void listarPedidos() {
+        if (!pedidoService.hayPedidos()) {
+            System.out.println("⚠️  No hay pedidos registrados.");
+            return;
+        }
+
+        System.out.println("\n--- LISTA DE PEDIDOS ---");
+        pedidoService.listarPedidos().forEach(System.out::println);
+    }
+}

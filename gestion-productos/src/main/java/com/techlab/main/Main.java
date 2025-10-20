@@ -55,23 +55,50 @@ public class Main {
         System.out.println("=====================================");
     }
 
-    // Métodos de producto (los mismos que ya teníamos)
+    // Métodos de producto 
     private static void agregarProducto() {
         try {
-            System.out.print("Ingrese nombre del producto: ");
+            System.out.println("Seleccione tipo de producto:");
+            System.out.println("1) Producto genérico");
+            System.out.println("2) Bebida");
+            System.out.println("3) Comida");
+            System.out.print("Opción: ");
+            String tipo = scanner.nextLine();
+
+            System.out.print("Nombre: ");
             String nombre = scanner.nextLine();
-            System.out.print("Ingrese precio: ");
+
+            System.out.print("Precio: ");
             double precio = Double.parseDouble(scanner.nextLine());
-            System.out.print("Ingrese stock: ");
+
+            System.out.print("Stock: ");
             int stock = Integer.parseInt(scanner.nextLine());
 
-            Producto p = productoService.agregarProducto(nombre, precio, stock);
-            System.out.println("✅ Producto agregado: " + p);
+            switch (tipo) {
+                case "2" -> {
+                    System.out.print("Litros: ");
+                    double litros = Double.parseDouble(scanner.nextLine());
+                    var bebida = productoService.agregarBebida(nombre, precio, stock, litros);
+                    System.out.println("✅ Bebida agregada: " + bebida);
+                }
+                case "3" -> {
+                    System.out.print("Fecha de vencimiento (YYYY-MM-DD): ");
+                    String fechaStr = scanner.nextLine();
+                    var fecha = java.time.LocalDate.parse(fechaStr);
+                    var comida = productoService.agregarComida(nombre, precio, stock, fecha);
+                    System.out.println("✅ Comida agregada: " + comida);
+                }
+                default -> {
+                    var producto = productoService.agregarProducto(nombre, precio, stock);
+                    System.out.println("✅ Producto agregado: " + producto);
+                }
+            }
 
-        } catch (NumberFormatException e) {
-            System.out.println("⚠️  Error: Ingrese números válidos para precio y stock.");
+        } catch (Exception e) {
+            System.out.println("⚠️  Error: Entrada inválida (" + e.getMessage() + ")");
         }
     }
+
 
     private static void listarProductos() {
         List<Producto> lista = productoService.listarProductos();

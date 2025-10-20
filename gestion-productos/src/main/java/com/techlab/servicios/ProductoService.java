@@ -4,37 +4,77 @@ import com.techlab.productos.*;
 import com.techlab.util.ArchivoUtil;
 
 import java.time.LocalDate;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Optional;
 
-/**
- * Servicio para manejar productos y su persistencia.
- */
 public class ProductoService {
 
     private final List<Producto> productos = new ArrayList<>();
     private int nextId = 1;
     private final String RUTA_PRODUCTOS = "data/productos.txt";
 
+    // ==========================================================
+    // 🔹 MÉTODOS PRINCIPALES DE AGREGADO
+    // ==========================================================
+
     public Producto agregarProducto(String nombre, double precio, int stock) {
-        Producto p = new Producto(nextId++, nombre, precio, stock);
-        productos.add(p);
-        return p;
+        Optional<Producto> existente = buscarPorNombreYPrecio(nombre, precio);
+
+        if (existente.isPresent()) {
+            Producto p = existente.get();
+            p.setStock(p.getStock() + stock);
+            System.out.println("ℹ️  Producto existente, se actualizó el stock.");
+            return p;
+        } else {
+            Producto p = new Producto(nextId++, nombre, precio, stock);
+            productos.add(p);
+            return p;
+        }
     }
 
-    public Bebida agregarBebida(String nombre, double precio, int stock, double litros) {
-        Bebida b = new Bebida(nextId++, nombre, precio, stock, litros);
-        productos.add(b);
-        return b;
+    public Producto agregarBebida(String nombre, double precio, int stock, double litros) {
+        Optional<Producto> existente = buscarPorNombreYPrecio(nombre, precio);
+
+        if (existente.isPresent()) {
+            Producto p = existente.get();
+            p.setStock(p.getStock() + stock);
+            System.out.println("ℹ️  Bebida existente, se actualizó el stock.");
+            return p;
+        } else {
+            Producto b = new Bebida(nextId++, nombre, precio, stock, litros);
+            productos.add(b);
+            return b;
+        }
     }
 
-    public Comida agregarComida(String nombre, double precio, int stock, LocalDate fechaVencimiento) {
-        Comida c = new Comida(nextId++, nombre, precio, stock, fechaVencimiento);
-        productos.add(c);
-        return c;
+    public Producto agregarComida(String nombre, double precio, int stock, LocalDate fechaVencimiento) {
+        Optional<Producto> existente = buscarPorNombreYPrecio(nombre, precio);
+
+        if (existente.isPresent()) {
+            Producto p = existente.get();
+            p.setStock(p.getStock() + stock);
+            System.out.println("ℹ️  Comida existente, se actualizó el stock.");
+            return p;
+        } else {
+            Producto c = new Comida(nextId++, nombre, precio, stock, fechaVencimiento);
+            productos.add(c);
+            return c;
+        }
     }
 
+    // ==========================================================
+    // 🔹 MÉTODOS AUXILIARES
+    // ==========================================================
+
+    /** Devuelve la lista actual de productos */
     public List<Producto> listarProductos() {
-        return new ArrayList<>(productos);
+        return productos;
+    }
+
+    /** Indica si no hay productos cargados */
+    public boolean estaVacio() {
+        return productos.isEmpty();
     }
 
     public Optional<Producto> buscarPorId(int id) {
@@ -42,35 +82,40 @@ public class ProductoService {
     }
 
     public Optional<Producto> buscarPorNombre(String nombre) {
-        return productos.stream().filter(p -> p.getNombre().equalsIgnoreCase(nombre)).findFirst();
+        return productos.stream()
+                .filter(p -> p.getNombre().equalsIgnoreCase(nombre))
+                .findFirst();
     }
 
-    public boolean actualizarProducto(int id, Double nuevoPrecio, Integer nuevoStock) {
-        Optional<Producto> encontrado = buscarPorId(id);
-        if (encontrado.isPresent()) {
-            Producto p = encontrado.get();
-            if (nuevoPrecio != null && nuevoPrecio >= 0) p.setPrecio(nuevoPrecio);
-            if (nuevoStock != null && nuevoStock >= 0) p.setStock(nuevoStock);
-            return true;
-        }
-        return false;
+    public Optional<Producto> buscarPorNombreYPrecio(String nombre, double precio) {
+        return productos.stream()
+                .filter(p -> p.getNombre().equalsIgnoreCase(nombre) && p.getPrecio() == precio)
+                .findFirst();
     }
 
     public boolean eliminarProducto(int id) {
         return productos.removeIf(p -> p.getId() == id);
     }
 
-    public boolean estaVacio() {
-        return productos.isEmpty();
+    public boolean actualizarProducto(int id, Double nuevoPrecio, Integer nuevoStock) {
+        Optional<Producto> opt = buscarPorId(id);
+        if (opt.isPresent()) {
+            Producto p = opt.get();
+            if (nuevoPrecio != null) p.setPrecio(nuevoPrecio);
+            if (nuevoStock != null) p.setStock(nuevoStock);
+            return true;
+        }
+        return false;
     }
 
-    // 🔹 Guardar productos en archivo
+    // ==========================================================
+    // 🔹 PERSISTENCIA DE DATOS
+    // ==========================================================
+
     public void guardarEnArchivo() {
         List<String> lineas = new ArrayList<>();
-
         for (Producto p : productos) {
             String tipo = p.getClass().getSimpleName();
-
             if (p instanceof Bebida b) {
                 lineas.add(String.format("%s;%d;%s;%.2f;%d;%.1f",
                         tipo, p.getId(), p.getNombre(), p.getPrecio(), p.getStock(), b.getLitros()));
@@ -82,14 +127,12 @@ public class ProductoService {
                         tipo, p.getId(), p.getNombre(), p.getPrecio(), p.getStock()));
             }
         }
-
         ArchivoUtil.escribirLineas(RUTA_PRODUCTOS, lineas);
     }
 
-
-    // 🔹 Cargar productos desde archivo
     public void cargarDesdeArchivo() {
         List<String> lineas = ArchivoUtil.leerLineas(RUTA_PRODUCTOS);
+        productos.clear();
 
         for (String linea : lineas) {
             try {
@@ -97,8 +140,6 @@ public class ProductoService {
                 String tipo = datos[0];
                 int id = Integer.parseInt(datos[1]);
                 String nombre = datos[2];
-
-                // 🔹 Convertimos comas a puntos antes de parsear
                 double precio = Double.parseDouble(datos[3].replace(",", "."));
                 int stock = Integer.parseInt(datos[4]);
 
@@ -113,14 +154,10 @@ public class ProductoService {
                     }
                     default -> productos.add(new Producto(id, nombre, precio, stock));
                 }
-
-                // mantener actualizado el id máximo
                 nextId = Math.max(nextId, id + 1);
-
             } catch (Exception e) {
                 System.out.println("⚠️ Error al leer línea: " + linea + " (" + e.getMessage() + ")");
             }
         }
     }
 }
-

@@ -9,7 +9,14 @@ public class Producto {
     private double precio;
     private int stock;
 
-    // 🔹 Constructor
+    // Constructor usado cuando el servicio genera el ID
+    public Producto(String nombre, double precio, int stock) {
+        this.nombre = nombre;
+        this.precio = precio;
+        this.stock = stock;
+    }
+
+    // Constructor usado solo para cargar desde archivo
     public Producto(int id, String nombre, double precio, int stock) {
         this.id = id;
         this.nombre = nombre;

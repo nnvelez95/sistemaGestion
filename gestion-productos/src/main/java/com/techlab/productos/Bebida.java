@@ -4,8 +4,13 @@ public class Bebida extends Producto {
 
     private double litros;
 
+    public Bebida(String nombre, double precio, int stock, double litros) {
+        super(nombre, precio, stock);  // sin id
+        this.litros = litros;
+    }
+
     public Bebida(int id, String nombre, double precio, int stock, double litros) {
-        super(id, nombre, precio, stock);
+        super(id, nombre, precio, stock); // con id (solo carga desde archivo)
         this.litros = litros;
     }
 

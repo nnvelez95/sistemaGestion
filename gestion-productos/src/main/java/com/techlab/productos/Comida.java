@@ -6,6 +6,11 @@ public class Comida extends Producto {
 
     private LocalDate fechaVencimiento;
 
+    public Comida(String nombre, double precio, int stock, LocalDate fechaVencimiento) {
+        super(nombre, precio, stock); // sin id
+        this.fechaVencimiento = fechaVencimiento;
+    }
+
     public Comida(int id, String nombre, double precio, int stock, LocalDate fechaVencimiento) {
         super(id, nombre, precio, stock);
         this.fechaVencimiento = fechaVencimiento;

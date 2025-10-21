@@ -1,7 +1,6 @@
 
 package com.techlab.main;
 
-
 import com.techlab.excepciones.StockInsuficienteException;
 import com.techlab.pedidos.LineaPedido;
 import com.techlab.pedidos.Pedido;
@@ -12,7 +11,6 @@ import com.techlab.servicios.ProductoService;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeParseException;
-
 import java.util.*;
 
 public class Main {
@@ -21,7 +19,6 @@ public class Main {
     private static final Scanner scanner = new Scanner(System.in);
     private static final ProductoService productoService = new ProductoService();
     private static final PedidoService pedidoService = new PedidoService(productoService);
-
 
     // 🎨 Códigos de color ANSI
     public static final String RESET = "\u001B[0m";
@@ -33,7 +30,6 @@ public class Main {
 
     public static void main(String[] args) {
 
-
         // 🔹 Cargar datos al iniciar
         productoService.cargarDesdeArchivo();
         pedidoService.cargarDesdeArchivo();
@@ -44,11 +40,10 @@ public class Main {
         System.out.println(BLUE + "=== SISTEMA DE GESTIÓN - TECHLAB ===" + RESET);
         System.out.println(CYAN + "================================" + RESET);
 
-
         while (!salir) {
             mostrarMenu();
             System.out.print("Elija una opción: ");
-            String opcion = scanner.nextLine();
+            String opcion = scanner.nextLine().trim();
 
             switch (opcion) {
                 case "1" -> agregarProducto();
@@ -58,11 +53,12 @@ public class Main {
                 case "5" -> crearPedido();
                 case "6" -> listarPedidos();
                 case "7" -> salir = true;
-                default -> System.out.println(YELLOW + "⚠️  Opción no válida.Intente nuevamente." + RESET);
-
+                default -> System.out.println(YELLOW + "⚠️  Opción no válida. Intente nuevamente." + RESET);
             }
+
             System.out.println(CYAN + "====================================" + RESET);
         }
+
         // 🔹 Guardar datos antes de salir
         productoService.guardarEnArchivo();
         pedidoService.guardarEnArchivo();
@@ -73,8 +69,7 @@ public class Main {
     // 🔹 Mostrar menú principal
     private static void mostrarMenu() {
         System.out.println("\n=========== MENÚ PRINCIPAL ===========");
-        System.out.print(YELLOW + "Elija una opción: " + RESET);
-        System.out.println("\n1) Agregar producto");
+        System.out.println("1) Agregar producto");
         System.out.println("2) Listar productos");
         System.out.println("3) Buscar / Actualizar producto");
         System.out.println("4) Eliminar producto");
@@ -84,9 +79,10 @@ public class Main {
         System.out.println("=====================================");
     }
 
+    // ======================================================
+    // 🔹 GESTIÓN DE PRODUCTOS
+    // ======================================================
 
-
-    // Métodos de producto
     private static void agregarProducto() {
         System.out.println("\n" + CYAN + "=== AGREGAR PRODUCTO ===" + RESET);
 
@@ -103,7 +99,7 @@ public class Main {
             System.out.print("Opción: ");
             tipoSeleccionado = scanner.nextLine().trim();
 
-            if (tipoSeleccionado.equals("1") || tipoSeleccionado.equals("2") || tipoSeleccionado.equals("3")) break;
+            if (tipoSeleccionado.matches("[1-3]")) break;
             System.out.println(RED + "⚠️  Opción inválida. Debe ingresar 1, 2 o 3." + RESET);
         }
 
@@ -127,16 +123,26 @@ public class Main {
         }
     }
 
-
-
     private static void listarProductos() {
         List<Producto> lista = productoService.listarProductos();
 
         if (lista.isEmpty()) {
             System.out.println(YELLOW + "⚠️  No hay productos cargados." + RESET);
         } else {
-            System.out.println("\n--- LISTA DE PRODUCTOS ---");
-            lista.forEach(System.out::println);
+            System.out.println("\n" + CYAN + "=== LISTA DE PRODUCTOS ===" + RESET);
+            System.out.printf("%-5s %-20s %-10s %-10s %-15s%n", "ID", "Nombre", "Precio", "Stock", "Detalle");
+            System.out.println("-----------------------------------------------------------");
+            for (Producto p : lista) {
+                if (p instanceof Bebida b)
+                    System.out.printf("%-5d %-20s $%-9.2f %-10d %.1f L%n",
+                            b.getId(), b.getNombre(), b.getPrecio(), b.getStock(), b.getLitros());
+                else if (p instanceof Comida c)
+                    System.out.printf("%-5d %-20s $%-9.2f %-10d Vence: %s%n",
+                            c.getId(), c.getNombre(), c.getPrecio(), c.getStock(), c.getFechaVencimiento());
+                else
+                    System.out.printf("%-5d %-20s $%-9.2f %-10d -%n",
+                            p.getId(), p.getNombre(), p.getPrecio(), p.getStock());
+            }
         }
     }
 
@@ -154,21 +160,26 @@ public class Main {
 
         if (producto.isPresent()) {
             Producto p = producto.get();
-            System.out.println("Encontrado: " + p);
+            System.out.println(GREEN + "✅ Producto encontrado:" + RESET);
+            System.out.println(p);
             System.out.print("¿Desea actualizar este producto? (s/n): ");
             String resp = scanner.nextLine();
 
             if (resp.equalsIgnoreCase("s")) {
                 try {
+                    System.out.print("Nuevo nombre (ENTER para mantener): ");
+                    String nuevoNombre = scanner.nextLine().trim();
+                    nuevoNombre = nuevoNombre.isEmpty() ? null : nuevoNombre;
+
                     System.out.print("Nuevo precio (ENTER para mantener): ");
-                    String nuevoPrecioStr = scanner.nextLine();
+                    String nuevoPrecioStr = scanner.nextLine().trim();
                     Double nuevoPrecio = nuevoPrecioStr.isEmpty() ? null : Double.parseDouble(nuevoPrecioStr);
 
                     System.out.print("Nuevo stock (ENTER para mantener): ");
-                    String nuevoStockStr = scanner.nextLine();
+                    String nuevoStockStr = scanner.nextLine().trim();
                     Integer nuevoStock = nuevoStockStr.isEmpty() ? null : Integer.parseInt(nuevoStockStr);
 
-                    boolean actualizado = productoService.actualizarProducto(p.getId(), nuevoPrecio, nuevoStock);
+                    boolean actualizado = productoService.actualizarProducto(p.getId(), nuevoNombre, nuevoPrecio, nuevoStock);
                     if (actualizado)
                         System.out.println(GREEN + "✅ Producto actualizado correctamente." + RESET);
                     else
@@ -176,6 +187,8 @@ public class Main {
 
                 } catch (NumberFormatException e) {
                     System.out.println(RED + "⚠️  Error: Ingrese valores numéricos válidos." + RESET);
+                } catch (IllegalArgumentException e) {
+                    System.out.println(RED + "⚠️  " + e.getMessage() + RESET);
                 }
             }
         } else {
@@ -184,20 +197,18 @@ public class Main {
     }
 
     private static void eliminarProducto() {
-        System.out.print("Ingrese el ID del producto a eliminar: ");
-        try {
-            int id = Integer.parseInt(scanner.nextLine());
-            boolean eliminado = productoService.eliminarProducto(id);
-            if (eliminado)
-                System.out.println(GREEN + "🗑️  Producto eliminado correctamente." + RESET);
-            else
-                System.out.println(RED + "⚠️  No se encontró un producto con ese ID." + RESET);
-        } catch (NumberFormatException e) {
-            System.out.println(RED + "⚠️  Error: Debe ingresar un número de ID válido." + RESET);
-        }
+        int id = leerEntero("Ingrese el ID del producto a eliminar: ");
+        boolean eliminado = productoService.eliminarProducto(id);
+        if (eliminado)
+            System.out.println(GREEN + "🗑️  Producto eliminado correctamente." + RESET);
+        else
+            System.out.println(RED + "⚠️  No se encontró un producto con ese ID." + RESET);
     }
 
-    // 🔹 Crear pedido
+    // ======================================================
+    // 🔹 GESTIÓN DE PEDIDOS
+    // ======================================================
+
     private static void crearPedido() {
         if (productoService.estaVacio()) {
             System.out.println(YELLOW + "⚠️  No hay productos disponibles para crear un pedido." + RESET);
@@ -205,14 +216,12 @@ public class Main {
         }
 
         List<LineaPedido> lineas = new ArrayList<>();
-
         System.out.println(GREEN + "--- CREAR NUEVO PEDIDO ---" + RESET);
         boolean seguir = true;
 
         while (seguir) {
             listarProductos();
-            System.out.print("Ingrese ID del producto que desea agregar: ");
-            int id = Integer.parseInt(scanner.nextLine());
+            int id = leerEntero("Ingrese ID del producto que desea agregar: ");
 
             Optional<Producto> optProducto = productoService.buscarPorId(id);
             if (optProducto.isEmpty()) {
@@ -221,10 +230,7 @@ public class Main {
             }
 
             Producto producto = optProducto.get();
-
-            System.out.print("Ingrese cantidad deseada: ");
-            int cantidad = Integer.parseInt(scanner.nextLine());
-
+            int cantidad = leerEntero("Ingrese cantidad deseada: ");
             lineas.add(new LineaPedido(producto, cantidad));
 
             System.out.print("¿Agregar otro producto? (s/n): ");
@@ -240,7 +246,6 @@ public class Main {
         }
     }
 
-    // 🔹 Listar pedidos
     private static void listarPedidos() {
         if (!pedidoService.hayPedidos()) {
             System.out.println(YELLOW + "⚠️  No hay pedidos registrados." + RESET);
@@ -250,11 +255,11 @@ public class Main {
         System.out.println("\n--- LISTA DE PEDIDOS ---");
         pedidoService.listarPedidos().forEach(System.out::println);
     }
-// ======================================================
-// 🔹 MÉTODOS DE ENTRADA SEGURA (con validaciones ANSI)
-// ======================================================
 
-    // 🔸 Lectura segura de texto (no vacío)
+    // ======================================================
+    // 🔹 MÉTODOS DE ENTRADA SEGURA
+    // ======================================================
+
     private static String leerTexto(String mensaje) {
         while (true) {
             System.out.print(mensaje);
@@ -264,7 +269,6 @@ public class Main {
         }
     }
 
-    // 🔸 Lectura segura de enteros
     private static int leerEntero(String mensaje) {
         while (true) {
             try {
@@ -277,19 +281,15 @@ public class Main {
         }
     }
 
-    // 🔸 Lectura segura de double (solo admite punto como separador decimal)
     private static double leerDouble(String mensaje) {
         while (true) {
             try {
                 System.out.print(mensaje);
                 String input = scanner.nextLine().trim();
-
-                // Validar que no haya coma como separador decimal
                 if (input.contains(",")) {
                     System.out.println(RED + "⚠️  Use punto (.) en lugar de coma (,) para los decimales." + RESET);
                     continue;
                 }
-
                 return Double.parseDouble(input);
             } catch (NumberFormatException e) {
                 System.out.println(RED + "⚠️  Ingrese un número decimal válido. Ejemplo: 1.5" + RESET);
@@ -297,10 +297,8 @@ public class Main {
         }
     }
 
-    // 🔸 Lectura segura de fecha (formato yyyy-MM-dd)
     private static LocalDate leerFecha(String mensaje) {
         DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd");
-
         while (true) {
             try {
                 System.out.print(mensaje + " (formato: yyyy-MM-dd): ");
@@ -311,5 +309,4 @@ public class Main {
             }
         }
     }
-
 }

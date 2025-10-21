@@ -12,54 +12,36 @@ public class ProductoService {
 
     private final List<Producto> productos = new ArrayList<>();
     private int nextId = 1;
-    private final String RUTA_PRODUCTOS = "data/productos.txt";
+    private static final String RUTA_PRODUCTOS = "data/productos.txt";
 
     // ==========================================================
     // 🔹 MÉTODOS PRINCIPALES DE AGREGADO
     // ==========================================================
 
     public Producto agregarProducto(String nombre, double precio, int stock) {
-        Optional<Producto> existente = buscarPorNombreYPrecio(nombre, precio);
+        return agregarGenerico(new Producto(nextId, nombre, precio, stock), stock);
+    }
 
+    public Producto agregarBebida(String nombre, double precio, int stock, double litros) {
+        return agregarGenerico(new Bebida(nextId, nombre, precio, stock, litros), stock);
+    }
+
+    public Producto agregarComida(String nombre, double precio, int stock, LocalDate fechaVencimiento) {
+        return agregarGenerico(new Comida(nextId, nombre, precio, stock, fechaVencimiento), stock);
+    }
+
+    // 🔸 Método interno reutilizado por todos los agregadores
+    private Producto agregarGenerico(Producto nuevo, int stock) {
+        Optional<Producto> existente = buscarPorNombreYPrecio(nuevo.getNombre(), nuevo.getPrecio());
         if (existente.isPresent()) {
             Producto p = existente.get();
             p.setStock(p.getStock() + stock);
             System.out.println("ℹ️  Producto existente, se actualizó el stock.");
             return p;
         } else {
-            Producto p = new Producto(nextId++, nombre, precio, stock);
-            productos.add(p);
-            return p;
-        }
-    }
-
-    public Producto agregarBebida(String nombre, double precio, int stock, double litros) {
-        Optional<Producto> existente = buscarPorNombreYPrecio(nombre, precio);
-
-        if (existente.isPresent()) {
-            Producto p = existente.get();
-            p.setStock(p.getStock() + stock);
-            System.out.println("ℹ️  Bebida existente, se actualizó el stock.");
-            return p;
-        } else {
-            Producto b = new Bebida(nextId++, nombre, precio, stock, litros);
-            productos.add(b);
-            return b;
-        }
-    }
-
-    public Producto agregarComida(String nombre, double precio, int stock, LocalDate fechaVencimiento) {
-        Optional<Producto> existente = buscarPorNombreYPrecio(nombre, precio);
-
-        if (existente.isPresent()) {
-            Producto p = existente.get();
-            p.setStock(p.getStock() + stock);
-            System.out.println("ℹ️  Comida existente, se actualizó el stock.");
-            return p;
-        } else {
-            Producto c = new Comida(nextId++, nombre, precio, stock, fechaVencimiento);
-            productos.add(c);
-            return c;
+            nuevo.setId(nextId++);
+            productos.add(nuevo);
+            return nuevo;
         }
     }
 
@@ -67,45 +49,71 @@ public class ProductoService {
     // 🔹 MÉTODOS AUXILIARES
     // ==========================================================
 
-    /** Devuelve la lista actual de productos */
     public List<Producto> listarProductos() {
         return productos;
     }
 
-    /** Indica si no hay productos cargados */
     public boolean estaVacio() {
         return productos.isEmpty();
     }
 
     public Optional<Producto> buscarPorId(int id) {
-        return productos.stream().filter(p -> p.getId() == id).findFirst();
+        for (Producto p : productos) {
+            if (p.getId() == id) return Optional.of(p);
+        }
+        return Optional.empty();
     }
 
     public Optional<Producto> buscarPorNombre(String nombre) {
-        return productos.stream()
-                .filter(p -> p.getNombre().equalsIgnoreCase(nombre))
-                .findFirst();
+        for (Producto p : productos) {
+            if (p.getNombre().equalsIgnoreCase(nombre)) return Optional.of(p);
+        }
+        return Optional.empty();
     }
 
     public Optional<Producto> buscarPorNombreYPrecio(String nombre, double precio) {
-        return productos.stream()
-                .filter(p -> p.getNombre().equalsIgnoreCase(nombre) && p.getPrecio() == precio)
-                .findFirst();
+        for (Producto p : productos) {
+            if (p.getNombre().equalsIgnoreCase(nombre) && p.getPrecio() == precio)
+                return Optional.of(p);
+        }
+        return Optional.empty();
     }
 
     public boolean eliminarProducto(int id) {
         return productos.removeIf(p -> p.getId() == id);
     }
 
-    public boolean actualizarProducto(int id, Double nuevoPrecio, Integer nuevoStock) {
+    /**
+     * Actualiza los datos de un producto existente (nombre, precio y/o stock).
+     * Solo actualiza los campos no nulos o válidos.
+     *
+     * @param id            ID del producto a modificar
+     * @param nuevoNombre   Nuevo nombre (o null si no se cambia)
+     * @param nuevoPrecio   Nuevo precio (o null si no se cambia)
+     * @param nuevoStock    Nuevo stock (o null si no se cambia)
+     * @return true si se actualizó correctamente, false si no se encontró el producto.
+     */
+    public boolean actualizarProducto(int id, String nuevoNombre, Double nuevoPrecio, Integer nuevoStock) {
         Optional<Producto> opt = buscarPorId(id);
         if (opt.isPresent()) {
             Producto p = opt.get();
-            if (nuevoPrecio != null) p.setPrecio(nuevoPrecio);
-            if (nuevoStock != null) p.setStock(nuevoStock);
+
+            if (nuevoNombre != null && !nuevoNombre.isBlank()) {
+                p.setNombre(nuevoNombre.trim());
+            }
+
+            if (nuevoPrecio != null && nuevoPrecio >= 0) {
+                p.setPrecio(nuevoPrecio);
+            }
+
+            if (nuevoStock != null && nuevoStock >= 0) {
+                p.setStock(nuevoStock);
+            }
+
             return true;
         }
         return false;
+
     }
 
     // ==========================================================
@@ -114,17 +122,17 @@ public class ProductoService {
 
     public void guardarEnArchivo() {
         List<String> lineas = new ArrayList<>();
+
         for (Producto p : productos) {
-            String tipo = p.getClass().getSimpleName();
             if (p instanceof Bebida b) {
-                lineas.add(String.format("%s;%d;%s;%.2f;%d;%.1f",
-                        tipo, p.getId(), p.getNombre(), p.getPrecio(), p.getStock(), b.getLitros()));
+                lineas.add(String.format("Bebida;%d;%s;%.2f;%d;%.1f",
+                        b.getId(), b.getNombre(), b.getPrecio(), b.getStock(), b.getLitros()));
             } else if (p instanceof Comida c) {
-                lineas.add(String.format("%s;%d;%s;%.2f;%d;%s",
-                        tipo, p.getId(), p.getNombre(), p.getPrecio(), p.getStock(), c.getFechaVencimiento()));
+                lineas.add(String.format("Comida;%d;%s;%.2f;%d;%s",
+                        c.getId(), c.getNombre(), c.getPrecio(), c.getStock(), c.getFechaVencimiento()));
             } else {
-                lineas.add(String.format("%s;%d;%s;%.2f;%d",
-                        tipo, p.getId(), p.getNombre(), p.getPrecio(), p.getStock()));
+                lineas.add(String.format("Producto;%d;%s;%.2f;%d",
+                        p.getId(), p.getNombre(), p.getPrecio(), p.getStock()));
             }
         }
         ArchivoUtil.escribirLineas(RUTA_PRODUCTOS, lineas);
@@ -137,6 +145,11 @@ public class ProductoService {
         for (String linea : lineas) {
             try {
                 String[] datos = linea.split(";");
+                if (datos.length < 5) {
+                    System.out.println("⚠️ Línea inválida (faltan datos): " + linea);
+                    continue;
+                }
+
                 String tipo = datos[0];
                 int id = Integer.parseInt(datos[1]);
                 String nombre = datos[2];
@@ -145,12 +158,16 @@ public class ProductoService {
 
                 switch (tipo) {
                     case "Bebida" -> {
-                        double litros = Double.parseDouble(datos[5].replace(",", "."));
-                        productos.add(new Bebida(id, nombre, precio, stock, litros));
+                        if (datos.length >= 6) {
+                            double litros = Double.parseDouble(datos[5].replace(",", "."));
+                            productos.add(new Bebida(id, nombre, precio, stock, litros));
+                        }
                     }
                     case "Comida" -> {
-                        LocalDate fecha = LocalDate.parse(datos[5]);
-                        productos.add(new Comida(id, nombre, precio, stock, fecha));
+                        if (datos.length >= 6) {
+                            LocalDate fecha = LocalDate.parse(datos[5]);
+                            productos.add(new Comida(id, nombre, precio, stock, fecha));
+                        }
                     }
                     default -> productos.add(new Producto(id, nombre, precio, stock));
                 }

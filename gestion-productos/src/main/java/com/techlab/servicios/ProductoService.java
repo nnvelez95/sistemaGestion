@@ -4,14 +4,17 @@ import com.techlab.productos.*;
 import com.techlab.util.ArchivoUtil;
 
 import java.time.LocalDate;
+import java.time.format.DateTimeParseException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
+import java.util.stream.Collectors;
 
 public class ProductoService {
 
     private final List<Producto> productos = new ArrayList<>();
     private int nextId = 1;
+
     private static final String RUTA_PRODUCTOS = "data/productos.txt";
 
     // ==========================================================
@@ -30,7 +33,6 @@ public class ProductoService {
         return agregarGenerico(new Comida(nextId, nombre, precio, stock, fechaVencimiento), stock);
     }
 
-    // 🔸 Método interno reutilizado por todos los agregadores
     private Producto agregarGenerico(Producto nuevo, int stock) {
         Optional<Producto> existente = buscarPorNombreYPrecio(nuevo.getNombre(), nuevo.getPrecio());
         if (existente.isPresent()) {
@@ -39,6 +41,7 @@ public class ProductoService {
             System.out.println("ℹ️  Producto existente, se actualizó el stock.");
             return p;
         } else {
+            //  Usar el nextId de forma segura
             nuevo.setId(nextId++);
             productos.add(nuevo);
             return nuevo;
@@ -50,7 +53,7 @@ public class ProductoService {
     // ==========================================================
 
     public List<Producto> listarProductos() {
-        return productos;
+        return new ArrayList<>(productos);
     }
 
     public boolean estaVacio() {
@@ -58,41 +61,32 @@ public class ProductoService {
     }
 
     public Optional<Producto> buscarPorId(int id) {
-        for (Producto p : productos) {
-            if (p.getId() == id) return Optional.of(p);
-        }
-        return Optional.empty();
+        //  Uso de Stream API
+        return productos.stream()
+                .filter(p -> p.getId() == id)
+                .findFirst();
     }
 
     public Optional<Producto> buscarPorNombre(String nombre) {
-        for (Producto p : productos) {
-            if (p.getNombre().equalsIgnoreCase(nombre)) return Optional.of(p);
-        }
-        return Optional.empty();
+        //  Uso de Stream API
+        return productos.stream()
+                .filter(p -> p.getNombre().equalsIgnoreCase(nombre))
+                .findFirst();
     }
 
     public Optional<Producto> buscarPorNombreYPrecio(String nombre, double precio) {
-        for (Producto p : productos) {
-            if (p.getNombre().equalsIgnoreCase(nombre) && p.getPrecio() == precio)
-                return Optional.of(p);
-        }
-        return Optional.empty();
+        //  Uso de Stream API
+        return productos.stream()
+                .filter(p -> p.getNombre().equalsIgnoreCase(nombre) && p.getPrecio() == precio)
+                .findFirst();
     }
 
     public boolean eliminarProducto(int id) {
+
         return productos.removeIf(p -> p.getId() == id);
     }
 
-    /**
-     * Actualiza los datos de un producto existente (nombre, precio y/o stock).
-     * Solo actualiza los campos no nulos o válidos.
-     *
-     * @param id            ID del producto a modificar
-     * @param nuevoNombre   Nuevo nombre (o null si no se cambia)
-     * @param nuevoPrecio   Nuevo precio (o null si no se cambia)
-     * @param nuevoStock    Nuevo stock (o null si no se cambia)
-     * @return true si se actualizó correctamente, false si no se encontró el producto.
-     */
+
     public boolean actualizarProducto(int id, String nuevoNombre, Double nuevoPrecio, Integer nuevoStock) {
         Optional<Producto> opt = buscarPorId(id);
         if (opt.isPresent()) {
@@ -121,60 +115,84 @@ public class ProductoService {
     // ==========================================================
 
     public void guardarEnArchivo() {
-        List<String> lineas = new ArrayList<>();
+        // Uso de Stream API para hacer el mapeo de datos más conciso.
+        List<String> lineas = productos.stream()
+                .map(this::productoAString) // Uso de método de referencia para encapsular la lógica
+                .collect(Collectors.toList());
 
-        for (Producto p : productos) {
-            if (p instanceof Bebida b) {
-                lineas.add(String.format("Bebida;%d;%s;%.2f;%d;%.1f",
-                        b.getId(), b.getNombre(), b.getPrecio(), b.getStock(), b.getLitros()));
-            } else if (p instanceof Comida c) {
-                lineas.add(String.format("Comida;%d;%s;%.2f;%d;%s",
-                        c.getId(), c.getNombre(), c.getPrecio(), c.getStock(), c.getFechaVencimiento()));
-            } else {
-                lineas.add(String.format("Producto;%d;%s;%.2f;%d",
-                        p.getId(), p.getNombre(), p.getPrecio(), p.getStock()));
-            }
-        }
         ArchivoUtil.escribirLineas(RUTA_PRODUCTOS, lineas);
     }
 
+    // Método privado para generar la línea de texto (limpia guardarEnArchivo)
+    private String productoAString(Producto p) {
+        if (p instanceof Bebida b) {
+            return String.format("Bebida;%d;%s;%.2f;%d;%.1f",
+                    b.getId(), b.getNombre(), b.getPrecio(), b.getStock(), b.getLitros());
+        } else if (p instanceof Comida c) {
+            return String.format("Comida;%d;%s;%.2f;%d;%s",
+                    c.getId(), c.getNombre(), c.getPrecio(), c.getStock(), c.getFechaVencimiento());
+        } else {
+            return String.format("Producto;%d;%s;%.2f;%d",
+                    p.getId(), p.getNombre(), p.getPrecio(), p.getStock());
+        }
+    }
+
+
+    /**
+     * Carga los productos desde el archivo. Si encuentra un error de formato o datos faltantes,
+     * lanza una IllegalStateException (RuntimeException) para detener la carga.
+     */
     public void cargarDesdeArchivo() {
         List<String> lineas = ArchivoUtil.leerLineas(RUTA_PRODUCTOS);
         productos.clear();
+        int maxId = 0;
 
         for (String linea : lineas) {
             try {
-                String[] datos = linea.split(";");
-                if (datos.length < 5) {
-                    System.out.println("⚠️ Línea inválida (faltan datos): " + linea);
-                    continue;
-                }
+                // Encapsulamos la lógica de parseo en un método auxiliar para limpieza.
+                Producto nuevoProducto = parsearLineaAProducto(linea);
+                productos.add(nuevoProducto);
+                maxId = Math.max(maxId, nuevoProducto.getId());
 
-                String tipo = datos[0];
-                int id = Integer.parseInt(datos[1]);
-                String nombre = datos[2];
-                double precio = Double.parseDouble(datos[3].replace(",", "."));
-                int stock = Integer.parseInt(datos[4]);
-
-                switch (tipo) {
-                    case "Bebida" -> {
-                        if (datos.length >= 6) {
-                            double litros = Double.parseDouble(datos[5].replace(",", "."));
-                            productos.add(new Bebida(id, nombre, precio, stock, litros));
-                        }
-                    }
-                    case "Comida" -> {
-                        if (datos.length >= 6) {
-                            LocalDate fecha = LocalDate.parse(datos[5]);
-                            productos.add(new Comida(id, nombre, precio, stock, fecha));
-                        }
-                    }
-                    default -> productos.add(new Producto(id, nombre, precio, stock));
-                }
-                nextId = Math.max(nextId, id + 1);
-            } catch (Exception e) {
-                System.out.println("⚠️ Error al leer línea: " + linea + " (" + e.getMessage() + ")");
+            } catch (IllegalStateException | NumberFormatException | DateTimeParseException e) {
+                // En lugar de solo imprimir, lanzamos una RuntimeException.
+                // Esto detiene la carga si hay un error crítico.
+                throw new IllegalStateException("Error al cargar producto desde archivo: Datos inválidos en línea: " + linea, e);
             }
         }
+
+        // Uso de maxId para asegurar que nextId no se duplique
+        nextId = maxId + 1;
+    }
+
+    // Método privado para la lógica compleja de parseo (limpia cargarDesdeArchivo)
+    private Producto parsearLineaAProducto(String linea) {
+        String[] datos = linea.split(";");
+
+        // Validación de datos mínimos
+        if (datos.length < 5) {
+            throw new IllegalStateException("Línea de producto con formato inválido (menos de 5 campos): " + linea);
+        }
+
+        String tipo = datos[0];
+        // Los errores de parseo (e.g. NumberFormatException) serán capturados por el try-catch en el método llamador
+        int id = Integer.parseInt(datos[1]);
+        String nombre = datos[2];
+        double precio = Double.parseDouble(datos[3].replace(",", "."));
+        int stock = Integer.parseInt(datos[4]);
+
+        return switch (tipo) {
+            case "Bebida" -> {
+                if (datos.length < 6) throw new IllegalStateException("Falta el campo 'litros' para la Bebida: " + linea);
+                double litros = Double.parseDouble(datos[5].replace(",", "."));
+                yield new Bebida(id, nombre, precio, stock, litros);
+            }
+            case "Comida" -> {
+                if (datos.length < 6) throw new IllegalStateException("Falta el campo 'fechaVencimiento' para la Comida: " + linea);
+                LocalDate fecha = LocalDate.parse(datos[5]); // Puede lanzar DateTimeParseException
+                yield new Comida(id, nombre, precio, stock, fecha);
+            }
+            default -> new Producto(id, nombre, precio, stock);
+        };
     }
 }

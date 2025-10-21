@@ -28,7 +28,7 @@ public class Main {
     public static final String BLUE = "\u001B[34m";
     public static final String CYAN = "\u001B[36m";
 
-    public static void main(String[] args) {
+    public static void main(String[] args)  {
 
         // 🔹 Cargar datos al iniciar
         productoService.cargarDesdeArchivo();
